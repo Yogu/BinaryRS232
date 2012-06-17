@@ -11,24 +11,30 @@ namespace Yogu.BinaryRs232 {
 		static SerialPort port;
 
 		static void Main(string[] args) {
-			Console.Title = "Yogus Binary RS232 terminal";
-			Console.WriteLine("Binary RS232 terminal");
-			new Program().Start();
+			try {
+				Console.Title = "Yogus Binary RS232 terminal";
+				Console.WriteLine("Binary RS232 terminal");
+				new Program().Start();
+			} catch (Exception e) {
+				Console.WriteLine("Unhandled exception occurred: " + e.Message);
+				Console.WriteLine(e.StackTrace);
+				Console.ReadKey();
+			}
 		}
 
 		private void Start() {
-			port = new SerialPort();
-			port.PortName = "COM" + askForPortNumber();
-			port.BaudRate = askForBaudRate();
-			try {
-				port.Open();
-			} catch (IOException e) {
-				Console.WriteLine("Failed to open com port: " + e.Message);
-				return;
-			} catch (UnauthorizedAccessException e) {
-				Console.WriteLine("Access to this com port refused: " + e.Message);
-				return;
-			}
+			do {
+				port = new SerialPort();
+				port.PortName = "COM" + askForPortNumber();
+				port.BaudRate = askForBaudRate();
+				try {
+					port.Open();
+				} catch (IOException e) {
+					Console.WriteLine("Failed to open com port: " + e.Message);
+				} catch (UnauthorizedAccessException e) {
+					Console.WriteLine("Access to this com port refused: " + e.Message);
+				}
+			} while (!port.IsOpen);
 			Console.WriteLine("Opened port, enter numbers to send bytes; enter \"q\" to quit or \"c\" to clear the window.");
 			Run();
 		}
@@ -49,7 +55,11 @@ namespace Yogu.BinaryRs232 {
 							int number;
 							if (parseNumber(str, out number)) {
 								if (number >= 0 && number <= 255) {
-									port.Write(new byte[] { (byte)number }, 0, 1);
+									try {
+										port.Write(new byte[] { (byte)number }, 0, 1);
+									} catch (IOException e) {
+										Console.WriteLine("Exception writing byte: " + e.Message);
+									}
 								} else
 									Console.WriteLine(str + ": Number must be between 0 and 255");
 							} else
@@ -121,7 +131,13 @@ namespace Yogu.BinaryRs232 {
 
 		static void port_DataReceived(object sender, SerialDataReceivedEventArgs e) {
 			while (port.BytesToRead > 0) {
-				int value = port.ReadByte();
+				int value;
+				try {
+					value = port.ReadByte();
+				} catch (IOException ex) {
+					Console.WriteLine("Exception reading byte: " + ex.Message);
+					continue;
+				}
 				Console.WriteLine("Read: {0:X02}  {2}  {0,3}  {1}", value, (char)value, Convert.ToString(value, 2).PadLeft(8, '0'));
 			}
 		}
